@@ -1,0 +1,82 @@
+name: networking-lab
+
+services:
+  web:
+    build:
+      context: apps/web
+      dockerfile: Dockerfile
+    env_file: .env
+    ports:
+      - "3000:3000"
+    networks:
+      - netlab1
+  proxy:
+    build:
+      context: apps/proxy
+      dockerfile: Dockerfile
+    env_file: .env
+    networks:
+      - netlab1
+      - netlab2
+      - netlab3
+      - netlab4
+
+  app1:
+    build:
+      context: apps/1
+      dockerfile: Dockerfile
+    env_file: .env
+    networks:
+      - netlab2
+  app2:
+    build:
+      context: apps/2
+      dockerfile: Dockerfile
+    env_file: .env
+    networks:
+      - netlab3
+
+  app3:
+    build:
+      context: apps/3
+      dockerfile: Dockerfile
+    env_file: .env
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - netlab4
+
+  db:
+    image: postgres:15-alpine
+    env_file: .env
+    environment:
+      # `:?` makes compose fail fast when the var is unset — no credential defaults.
+      - POSTGRES_USER=${DB_USERNAME:?DB_USERNAME is required (see .env)}
+      - POSTGRES_PASSWORD=${DB_PASSWORD:?DB_PASSWORD is required (see .env)}
+      - POSTGRES_DB=${DB_NAME:?DB_NAME is required (see .env)}
+      - POSTGRES_INITDB_ARGS=--encoding=UTF-8 --lc-collate=C --lc-ctype=C
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      # SQL files here run once, on first start of an empty volume (creates network_lab)
+      - ./db/init:/docker-entrypoint-initdb.d:ro
+    command: >
+      postgres -c max_connections=200 -c shared_buffers=256MB -c effective_cache_size=1GB -c maintenance_work_mem=64MB -c checkpoint_completion_target=0.9 -c wal_buffers=16MB -c default_statistics_target=100 -c random_page_cost=1.1 -c effective_io_concurrency=200 -c work_mem=4MB -c min_wal_size=1GB -c max_wal_size=4GB
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    restart: "no"
+    networks:
+      - netlab4
+
+volumes:
+  postgres_data:
+
+networks:
+  netlab1:
+  netlab2:
+  netlab3:
+  netlab4:
