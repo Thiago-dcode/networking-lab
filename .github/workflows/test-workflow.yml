@@ -1,0 +1,16 @@
+name: TEST-WORKFLOW
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+
+jobs:
+  job1:
+    runs-on: ubuntu-latest
+    steps:
+      - name: say helo
+        run: echo "hello world!"
