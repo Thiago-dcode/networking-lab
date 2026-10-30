@@ -1,66 +1,55 @@
+import { log } from "./logger.js";
 
 const SERVICES_AMOUNT = 3;
 
 const resolverServiceUrl = (serviceNum: number) => {
-  if (serviceNum > SERVICES_AMOUNT || serviceNum < 0) {
+  if (serviceNum > SERVICES_AMOUNT || serviceNum < 1) {
     throw new Error(
       `ServiceNum out of range: ${serviceNum}, max services:${SERVICES_AMOUNT}`,
     );
   }
   return `http://${process.env[`APP${serviceNum}_HOST`]}:${process.env[`APP${serviceNum}_PORT`]}`;
 };
-const getIndexFromApp = async (appNum: number) => {
-  try {
-    const result = await fetch(resolverServiceUrl(appNum));
-    return {
-      data: await result.text(),
-      error: null,
-    };
-  } catch (err) {
-    return {
-      data: null,
-      error:
-        err instanceof Error
-          ? err.message
-          : `Something went wrong calling app${appNum}:getIndex`,
-    };
-  }
+
+type CallServiceArgs = {
+  appNum: number;
+  method: string;
+  path: string;
+  requestId: string;
 };
 
-type Method = "GET";
-export const serviceController = async (
-  method: Method,
-  serviceNumber: number,
-  path: string = "/",
-) => {
-  const paths: Record<
-    Method,
-    Record<number, Record<string, () => Promise<any>>>
-  > = {
-    GET: {
-      1: {
-        "/": async () => getIndexFromApp(1),
-      },
-      2: {
-        "/": async () => getIndexFromApp(2),
-      },
-      3: {
-      "/": async () => getIndexFromApp(3),
-      },
-    },
-  };
+export type CallServiceResult = {
+  status: number | null;
+  data: string | null;
+  error: string | null;
+};
 
-  if (!Object.hasOwn(paths, method)) {
-    throw new Error("Method not found: " + serviceNumber);
-  }
-  if (!Object.hasOwn(paths[method], serviceNumber)) {
-    throw new Error("Service not found: " + serviceNumber);
-  }
-  const resolver = paths[method]?.[serviceNumber]?.[path];
+export const callService = async ({
+  appNum,
+  method,
+  path,
+  requestId,
+}: CallServiceArgs): Promise<CallServiceResult> => {
+  const target = resolverServiceUrl(appNum) + path;
+  const started = Date.now();
+  log("info", requestId, `calling app${appNum}: ${method} ${target}`);
 
-  if (!resolver) {
-    throw new Error("Method not found: " + serviceNumber + ` path: ${path}`);
+  try {
+    const result = await fetch(target, { method });
+    const data = await result.text();
+    log(
+      result.ok ? "info" : "warn",
+      requestId,
+      `app${appNum} answered ${result.status} in ${Date.now() - started}ms (${data.length} bytes)`,
+    );
+    return { status: result.status, data, error: null };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Unknown error";
+    log(
+      "error",
+      requestId,
+      `app${appNum} unreachable after ${Date.now() - started}ms: ${message}`,
+    );
+    return { status: null, data: null, error: message };
   }
-
-  return await resolver();
 };

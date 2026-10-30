@@ -1,0 +1,73 @@
+# Local development overrides. Loaded automatically by `docker compose up` / `docker compose watch`.
+# Production-style run (no watch, runtime stage): docker compose -f compose.yaml up --build
+#
+# Dev workflow:
+#   docker compose up --watch
+# Source edits under src/ are synced into the container and `tsx watch` restarts the server.
+# Changes to package.json or pnpm-lock.yaml trigger a rebuild of that service.
+
+services:
+  web:
+    build:
+      target: dev
+    develop:
+      watch:
+        - action: sync
+          path: apps/web/src
+          target: /app/src
+        - action: rebuild
+          path: apps/web/package.json
+        - action: rebuild
+          path: apps/web/pnpm-lock.yaml
+
+  proxy:
+    build:
+      target: dev
+    develop:
+      watch:
+        - action: sync
+          path: apps/proxy/src
+          target: /app/src
+        - action: rebuild
+          path: apps/proxy/package.json
+        - action: rebuild
+          path: apps/proxy/pnpm-lock.yaml
+
+  app1:
+    build:
+      target: dev
+    develop:
+      watch:
+        - action: sync
+          path: apps/1/src
+          target: /app/src
+        - action: rebuild
+          path: apps/1/package.json
+        - action: rebuild
+          path: apps/1/pnpm-lock.yaml
+
+  app2:
+    build:
+      target: dev
+    develop:
+      watch:
+        - action: sync
+          path: apps/2/src
+          target: /app/src
+        - action: rebuild
+          path: apps/2/package.json
+        - action: rebuild
+          path: apps/2/pnpm-lock.yaml
+
+  app3:
+    build:
+      target: dev
+    develop:
+      watch:
+        - action: sync
+          path: apps/3/src
+          target: /app/src
+        - action: rebuild
+          path: apps/3/package.json
+        - action: rebuild
+          path: apps/3/pnpm-lock.yaml

@@ -25,6 +25,15 @@ COPY . .
 # Compile TypeScript (src/ to dist/) using the "build" script in package.json (runs tsc).
 RUN pnpm run build
 
+# ---- dev stage: deps installed, source mounted/synced by `docker compose watch`, runs tsx watch ----
+FROM node:22-alpine AS dev
+WORKDIR /app
+RUN corepack enable
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+RUN pnpm install --frozen-lockfile
+COPY . .
+CMD ["pnpm", "dev"]
+
 # ---- runtime stage: only what's needed to run ----
 # Start a fresh Node.js image. Nothing from the builder stage is kept unless copied below,
 # so dev dependencies, TypeScript and the source code are not in the final image.
