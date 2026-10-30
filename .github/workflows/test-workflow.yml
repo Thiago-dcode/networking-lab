@@ -12,5 +12,5 @@ jobs:
   job1:
     runs-on: ubuntu-latest
     steps:
-      - name: say helo
+      - name: say hello
         run: echo "hello world!"

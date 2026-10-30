@@ -15,7 +15,7 @@ const availableRoutes: Record<Method, Record<string, () => Promise<string>>> = {
     },
     "/info": async () => {
       console.log("Calling info")
-      return JSON.stringify(getServerInfo);
+      return JSON.stringify(getServerInfo());
     },
   },
 };
