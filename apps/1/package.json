@@ -1,5 +1,5 @@
 {
-	"name": "1",
+	"name": "@netlab/app1",
 	"version": "1.0.0",
 	"description": "",
 	"main": "index.js",
@@ -22,6 +22,9 @@
 			"version": "^11.6.0",
 			"onFail": "download"
 		}
+	},
+	"dependencies": {
+  "@netlab/core": "workspace:*"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "2.6.3",
