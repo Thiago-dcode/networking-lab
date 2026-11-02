@@ -3,8 +3,11 @@
 #
 # Dev workflow:
 #   docker compose up --watch
-# Source edits under src/ are synced into the container and `tsx watch` restarts the server.
-# Changes to package.json or pnpm-lock.yaml trigger a rebuild of that service.
+# Edits under apps/<name>/src are synced into the container and `tsx watch` restarts the server.
+# Changes to a package.json or the root pnpm-lock.yaml trigger a rebuild of that service.
+#
+# Paths: the build context is the repo root, so the container's workspace lives at /app/apps/<name>.
+# The sync "target" must point there, and the rebuild paths are relative to the repo root.
 
 services:
   web:
@@ -14,11 +17,11 @@ services:
       watch:
         - action: sync
           path: apps/web/src
-          target: /app/src
+          target: /app/apps/web/src
         - action: rebuild
           path: apps/web/package.json
         - action: rebuild
-          path: apps/web/pnpm-lock.yaml
+          path: pnpm-lock.yaml
 
   proxy:
     build:
@@ -27,11 +30,11 @@ services:
       watch:
         - action: sync
           path: apps/proxy/src
-          target: /app/src
+          target: /app/apps/proxy/src
         - action: rebuild
           path: apps/proxy/package.json
         - action: rebuild
-          path: apps/proxy/pnpm-lock.yaml
+          path: pnpm-lock.yaml
 
   app1:
     build:
@@ -40,11 +43,11 @@ services:
       watch:
         - action: sync
           path: apps/1/src
-          target: /app/src
+          target: /app/apps/1/src
         - action: rebuild
           path: apps/1/package.json
         - action: rebuild
-          path: apps/1/pnpm-lock.yaml
+          path: pnpm-lock.yaml
 
   app2:
     build:
@@ -53,11 +56,11 @@ services:
       watch:
         - action: sync
           path: apps/2/src
-          target: /app/src
+          target: /app/apps/2/src
         - action: rebuild
           path: apps/2/package.json
         - action: rebuild
-          path: apps/2/pnpm-lock.yaml
+          path: pnpm-lock.yaml
 
   app3:
     build:
@@ -66,8 +69,8 @@ services:
       watch:
         - action: sync
           path: apps/3/src
-          target: /app/src
+          target: /app/apps/3/src
         - action: rebuild
           path: apps/3/package.json
         - action: rebuild
-          path: apps/3/pnpm-lock.yaml
+          path: pnpm-lock.yaml

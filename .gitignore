@@ -1,2 +1,40 @@
-.env*
-*node_modules
+# ---- Dependencies ----
+node_modules/
+
+# ---- Build output ----
+# dist/ is generated from src/ by `pnpm build` (and inside the Docker builds).
+dist/
+*.tsbuildinfo
+
+# ---- Environment and secrets ----
+# .env holds DB credentials. Never commit it.
+.env
+.env.*
+!.env.example
+
+# ---- Logs and runtime data ----
+logs/
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# ---- Test and coverage ----
+coverage/
+.nyc_output/
+
+# ---- Temp and cache ----
+tmp/
+temp/
+.cache/
+*.tmp
+*.swp
+
+# ---- Editors and IDEs ----
+.vscode/
+.idea/
+*.code-workspace
+
+# ---- OS files ----
+.DS_Store
+Thumbs.db
+desktop.ini

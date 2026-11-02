@@ -1,69 +1,96 @@
-# ---- build stage: has dev deps + TypeScript ----
-# Start from the official Node.js 22 image on Alpine Linux (a small Linux distro).
-# "AS builder" names this stage so the runtime stage can copy files out of it.
-FROM node:22-alpine AS builder
+# Build context is the REPO ROOT (see compose.yaml: context: .), not apps/1.
+# That's why every COPY path below starts from the repo root: this app depends on
+# packages/core, and pnpm needs the root lockfile and workspace config to resolve the workspace.
 
-# Set /app as the working directory. Later COPY and RUN commands run from here.
+# ---- base: shared install layer, used by builder and dev ----
+# Node 22 on Alpine: a small Linux image with Node preinstalled.
+FROM node:22-alpine AS base
+
+# Every later RUN/COPY/CMD runs from /app, which mirrors the repo layout (apps/, packages/).
 WORKDIR /app
 
-# Enable Corepack, which ships with Node. It reads the "packageManager" / "devEngines"
-# field in package.json and provides the matching pnpm version, so you don't install pnpm yourself.
+# Enable Corepack (bundled with Node). It reads "packageManager" in the root package.json
+# and provides the pinned pnpm version, so pnpm itself doesn't need installing.
 RUN corepack enable
 
-# Copy dependency manifests first so this layer stays cached
-# Copy only package.json, the lockfile and the workspace config into /app.
+# Copy only the manifests first. Docker caches each layer, so this install layer is reused
+# until a package.json or the lockfile changes. Source-code edits don't re-run the install.
+#
+# pnpm must see the package.json of EVERY workspace project, not just the ones this app uses,
+# because pnpm-lock.yaml records all of them. Missing one makes --frozen-lockfile fail.
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY apps/1/package.json ./apps/1/
+COPY apps/2/package.json ./apps/2/
+COPY apps/3/package.json ./apps/3/
+COPY apps/proxy/package.json ./apps/proxy/
+COPY apps/web/package.json ./apps/web/
+COPY packages/core/package.json ./packages/core/
 
-# Install dependencies exactly as recorded in pnpm-lock.yaml.
-# --frozen-lockfile fails the build if the lockfile is out of date instead of changing it.
+# Install exactly what pnpm-lock.yaml records. --frozen-lockfile fails the build if the
+# lockfile would need to change, so builds stay reproducible.
 RUN pnpm install --frozen-lockfile
 
-# Now the source (changes often)
-# Copy the rest of the project (src/, tsconfig.json, etc.) into /app.
-COPY . .
+# ---- builder: compile the app and its workspace dependency ----
+FROM base AS builder
 
-# Compile TypeScript (src/ to dist/) using the "build" script in package.json (runs tsc).
-RUN pnpm run build
+# Now the source code (changes often, so it comes after the install layer).
+COPY packages/core ./packages/core
+COPY apps/1 ./apps/1
 
-# ---- dev stage: deps installed, source mounted/synced by `docker compose watch`, runs tsx watch ----
-FROM node:22-alpine AS dev
-WORKDIR /app
-RUN corepack enable
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-RUN pnpm install --frozen-lockfile
-COPY . .
-CMD ["pnpm", "dev"]
+# "--filter @netlab/app1..." means this package AND its dependencies. pnpm builds
+# @netlab/core first, which produces packages/core/dist that app1 imports at runtime.
+# Plain "pnpm run build" would run "pnpm -r run build" and try to build every app,
+# including ones this image doesn't copy.
+RUN pnpm --filter @netlab/app1... run build
 
-# ---- runtime stage: only what's needed to run ----
-# Start a fresh Node.js image. Nothing from the builder stage is kept unless copied below,
-# so dev dependencies, TypeScript and the source code are not in the final image.
+# ---- deploy: assemble a standalone folder for the runtime image ----
+FROM builder AS deploy
+
+# "pnpm deploy" copies app1 into /prod/app1 with its production dependencies and the local
+# packages it uses (@netlab/core, with its built dist/). The workspace symlinks become real
+# files, so the result runs without the rest of the repo.
+# pnpm 12.2+ deploys workspace packages without the inject-workspace-packages setting. It rewrites
+# @netlab/core to a local file: dependency in a deploy-specific lockfile. If two versions of a peer
+# dependency compete, the deploy fails with ERR_PNPM_DEPLOY_AMBIGUOUS_PEER and names the package.
+RUN pnpm --filter @netlab/app1 deploy --prod /prod/app1
+
+# ---- dev: used by `docker compose watch`; runs `tsx watch` against the source ----
+FROM base AS dev
+
+COPY packages/core ./packages/core
+COPY apps/1 ./apps/1
+
+# Core is consumed through dist/, so it must be built once before app1 can start.
+# Editing packages/core/src does NOT rebuild automatically in this stage. Rebuild with
+# `pnpm --filter @netlab/core run build` in the container, or restart the service after a rebuild.
+RUN pnpm --filter @netlab/core run build
+
+# The dev script ("tsx watch src/index.ts") lives in apps/1, so run it through the filter
+# from the workspace root instead of "pnpm dev" in /app (which has no dev script).
+CMD ["pnpm", "--filter", "@netlab/app1", "dev"]
+
+# ---- runtime: only the files needed to run the app ----
+# A fresh Node image. Nothing from builder or dev is kept unless copied in below, so there
+# is no TypeScript, source code, pnpm, or dev dependency in the final image.
 FROM node:22-alpine AS runtime
 
-
-# RUN corepack enablDe
-# # Set /app as the working directory for this stage.
 WORKDIR /app
-# # Set the NODE_ENV environment variable to "production" for this image.
-# # Many libraries use it to turn off dev-only behavior and speed things up.
+
+# NODE_ENV=production turns off dev-only behavior in many libraries.
+# Port and service hosts come from .env (env_file in compose.yaml), not from the image,
+# so the same image can run with different addresses.
 ENV NODE_ENV=production
-ENV PORT=3000
-ENV HOST=app2
-ENV APP1_URL=http://app1:3000
-# # package.json is needed because of "type": "module" (dist uses ESM imports)
-# # Copy package.json from the builder into /app so Node knows the code is ESM.
-COPY --from=builder /app/package.json ./
 
-# # Copy the compiled JavaScript from the builder's dist/ folder into /app/dist.
-COPY --from=builder /app/dist ./dist
+# Copy the self-contained output of "pnpm deploy": package.json, node_modules, dist/.
+COPY --from=deploy /prod/app1 ./
 
-# # Run the container as the non-root "node" user that the official image provides.
-# # Running without root limits the damage if the app is compromised.
+# Run as the non-root "node" user that the official Node image provides. If the app is
+# compromised, the attacker has fewer rights.
 USER node
 
-# # Document that the app listens on port 3000. This does not publish the port;
-# # you still need -p 3000:3000 when running the container.
+# Documents the port the app listens on. It does not publish the port; compose does that.
 EXPOSE 3000
 
-# # Default command when the container starts: run the compiled server.
-# # The exec form (JSON array) makes node the main process, so it receives SIGTERM from "docker stop".
+# Exec form: node runs as PID 1 and receives SIGTERM from "docker stop", which the app
+# handles to shut down cleanly.
 CMD ["node", "dist/index.js"]

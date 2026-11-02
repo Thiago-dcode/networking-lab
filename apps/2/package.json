@@ -19,9 +19,12 @@
 	"devEngines": {
 		"packageManager": {
 			"name": "pnpm",
-			"version": "^11.6.0",
+			"version": "^12.16.1",
 			"onFail": "download"
 		}
+	},
+	"dependencies": {
+		"@netlab/core": "workspace:*"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "2.6.3",
