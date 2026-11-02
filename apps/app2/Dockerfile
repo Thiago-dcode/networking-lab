@@ -15,47 +15,45 @@ RUN corepack enable
 # pnpm must see the package.json of EVERY workspace project, because pnpm-lock.yaml
 # records all of them. Missing one makes --frozen-lockfile fail.
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-COPY apps/1/package.json ./apps/1/
-COPY apps/2/package.json ./apps/2/
-COPY apps/3/package.json ./apps/3/
+COPY apps/app1/package.json ./apps/app1/
+COPY apps/app2/package.json ./apps/app2/
+COPY apps/app3/package.json ./apps/app3/
 COPY apps/proxy/package.json ./apps/proxy/
 COPY apps/web/package.json ./apps/web/
 COPY packages/core/package.json ./packages/core/
 
 # Install exactly what the lockfile records. --frozen-lockfile fails if it would need to change.
-# This also installs "pg" for app3, which is a real runtime dependency.
 RUN pnpm install --frozen-lockfile
 
 # ---- builder: compile this app ----
 FROM base AS builder
 
 COPY packages/core ./packages/core
-COPY apps/3 ./apps/3
+COPY apps/app2 ./apps/app2
 
 # "..." means this package AND its workspace dependencies, so @netlab/core is built first.
-# app3 imports the router, types and helpers from core, which are read from its dist/ folder.
-RUN pnpm --filter @netlab/app3... run build
+# app2 imports the router and helpers from core, which are read from its dist/ folder.
+RUN pnpm --filter @netlab/app2... run build
 
 # ---- deploy: standalone folder with production dependencies only ----
 FROM builder AS deploy
 
-# Copies app3's package.json, dist/ and production node_modules (including "pg") into /prod/app3.
-# @types/pg and other dev dependencies are left out by --prod.
-# pnpm 12.2+ deploys workspace packages without extra settings (see apps/1/Dockerfile).
-RUN pnpm --filter @netlab/app3 deploy --prod /prod/app3
+# Copies app2's package.json, dist/ and production node_modules into /prod/app2.
+# pnpm 12.2+ deploys workspace packages without extra settings (see apps/app1/Dockerfile).
+RUN pnpm --filter @netlab/app2 deploy --prod /prod/app2
 
 # ---- dev: used by `docker compose watch`; runs tsx watch against the source ----
 FROM base AS dev
 
 COPY packages/core ./packages/core
-COPY apps/3 ./apps/3
+COPY apps/app2 ./apps/app2
 
-# Core is consumed through dist/, so build it once before app3 starts. Editing packages/core/src
+# Core is consumed through dist/, so build it once before app2 starts. Editing packages/core/src
 # does not rebuild it in this stage (same as apps/1).
 RUN pnpm --filter @netlab/core run build
 
 # Run the dev script through the filter from the workspace root.
-CMD ["pnpm", "--filter", "@netlab/app3", "dev"]
+CMD ["pnpm", "--filter", "@netlab/app2", "dev"]
 
 # ---- runtime: only what the app needs to run ----
 FROM node:22-alpine AS runtime
@@ -63,11 +61,11 @@ FROM node:22-alpine AS runtime
 WORKDIR /app
 
 # Production mode turns off dev-only behavior in many libraries.
-# DB_HOST, DB_USERNAME, DB_PASSWORD and DB_NAME come from .env at run time, not from the image.
+# The port and any hosts come from .env (env_file in compose.yaml), not the image.
 ENV NODE_ENV=production
 
 # Copy the standalone output of "pnpm deploy".
-COPY --from=deploy /prod/app3 ./
+COPY --from=deploy /prod/app2 ./
 
 # Run as the non-root "node" user provided by the official image.
 USER node

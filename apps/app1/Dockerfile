@@ -1,4 +1,4 @@
-# Build context is the REPO ROOT (see compose.yaml: context: .), not apps/1.
+# Build context is the REPO ROOT (see compose.yaml: context: .), not apps/app1.
 # That's why every COPY path below starts from the repo root: this app depends on
 # packages/core, and pnpm needs the root lockfile and workspace config to resolve the workspace.
 
@@ -19,9 +19,9 @@ RUN corepack enable
 # pnpm must see the package.json of EVERY workspace project, not just the ones this app uses,
 # because pnpm-lock.yaml records all of them. Missing one makes --frozen-lockfile fail.
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-COPY apps/1/package.json ./apps/1/
-COPY apps/2/package.json ./apps/2/
-COPY apps/3/package.json ./apps/3/
+COPY apps/app1/package.json ./apps/app1/
+COPY apps/app2/package.json ./apps/app2/
+COPY apps/app3/package.json ./apps/app3/
 COPY apps/proxy/package.json ./apps/proxy/
 COPY apps/web/package.json ./apps/web/
 COPY packages/core/package.json ./packages/core/
@@ -35,7 +35,7 @@ FROM base AS builder
 
 # Now the source code (changes often, so it comes after the install layer).
 COPY packages/core ./packages/core
-COPY apps/1 ./apps/1
+COPY apps/app1 ./apps/app1
 
 # "--filter @netlab/app1..." means this package AND its dependencies. pnpm builds
 # @netlab/core first, which produces packages/core/dist that app1 imports at runtime.
@@ -58,7 +58,7 @@ RUN pnpm --filter @netlab/app1 deploy --prod /prod/app1
 FROM base AS dev
 
 COPY packages/core ./packages/core
-COPY apps/1 ./apps/1
+COPY apps/app1 ./apps/app1
 
 # Core is consumed through dist/, so it must be built once before app1 can start.
 # Editing packages/core/src does NOT rebuild automatically in this stage. Rebuild with

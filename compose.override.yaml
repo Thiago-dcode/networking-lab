@@ -42,10 +42,10 @@ services:
     develop:
       watch:
         - action: sync
-          path: apps/1/src
-          target: /app/apps/1/src
+          path: apps/app1/src
+          target: /app/apps/app1/src
         - action: rebuild
-          path: apps/1/package.json
+          path: apps/app1/package.json
         - action: rebuild
           path: pnpm-lock.yaml
 
@@ -55,10 +55,10 @@ services:
     develop:
       watch:
         - action: sync
-          path: apps/2/src
-          target: /app/apps/2/src
+          path: apps/app2/src
+          target: /app/apps/app2/src
         - action: rebuild
-          path: apps/2/package.json
+          path: apps/app2/package.json
         - action: rebuild
           path: pnpm-lock.yaml
 
@@ -68,9 +68,9 @@ services:
     develop:
       watch:
         - action: sync
-          path: apps/3/src
-          target: /app/apps/3/src
+          path: apps/app3/src
+          target: /app/apps/app3/src
         - action: rebuild
-          path: apps/3/package.json
+          path: apps/app3/package.json
         - action: rebuild
           path: pnpm-lock.yaml

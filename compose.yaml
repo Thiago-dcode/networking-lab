@@ -24,14 +24,14 @@ services:
   app1:
     build:
       context: .
-      dockerfile: apps/1/Dockerfile
+      dockerfile: apps/app1/Dockerfile
     env_file: .env
     networks:
       - netlab2
   app2:
     build:
       context: .
-      dockerfile: apps/2/Dockerfile
+      dockerfile: apps/app2/Dockerfile
     env_file: .env
     networks:
       - netlab3
@@ -39,7 +39,7 @@ services:
   app3:
     build:
       context: .
-      dockerfile: apps/3/Dockerfile
+      dockerfile: apps/app3/Dockerfile
     env_file: .env
     depends_on:
       db:

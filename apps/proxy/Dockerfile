@@ -15,9 +15,9 @@ RUN corepack enable
 # pnpm must see the package.json of EVERY workspace project, because pnpm-lock.yaml
 # records all of them. Missing one makes --frozen-lockfile fail.
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-COPY apps/1/package.json ./apps/1/
-COPY apps/2/package.json ./apps/2/
-COPY apps/3/package.json ./apps/3/
+COPY apps/app1/package.json ./apps/app1/
+COPY apps/app2/package.json ./apps/app2/
+COPY apps/app3/package.json ./apps/app3/
 COPY apps/proxy/package.json ./apps/proxy/
 COPY apps/web/package.json ./apps/web/
 COPY packages/core/package.json ./packages/core/
@@ -38,7 +38,7 @@ FROM builder AS deploy
 
 # Copies the proxy's package.json and dist/ into /prod/proxy. It has no runtime
 # dependencies, so the production node_modules is empty.
-# pnpm 12.2+ deploys workspace packages without extra settings (see apps/1/Dockerfile).
+# pnpm 12.2+ deploys workspace packages without extra settings (see apps/app1/Dockerfile).
 RUN pnpm --filter @netlab/proxy deploy --prod /prod/proxy
 
 # ---- dev: used by `docker compose watch`; runs tsx watch against the source ----
