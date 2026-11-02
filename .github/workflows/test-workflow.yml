@@ -11,7 +11,7 @@ jobs:
       - name: Compute image name
         run: |
           REPO="${GITHUB_REPOSITORY#*/}"                       # owner/repo → repo
-          echo "IMAGE=${vars.DOCKER_USERNAME}/${REPO,,}-app1" >> "$GITHUB_ENV"   # ,, = lowercase
+          echo "IMAGE=${{vars.DOCKER_USERNAME}}/${REPO,,}-app1" >> "$GITHUB_ENV"   # ,, = lowercase
 
       - uses: docker/login-action@v3
         with:
