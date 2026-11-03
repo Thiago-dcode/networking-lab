@@ -1,4 +1,4 @@
-name: Build and publish image to GHCR
+name: Build and publish image to GHCR MATRIX VERSION
 
 on: workflow_dispatch
 
