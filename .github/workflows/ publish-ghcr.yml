@@ -1,0 +1,25 @@
+name: publish to ghcr
+
+on:
+  workflow_dispatch:
+
+env:
+  APPS: "web proxy app1 app2 app3"
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: login to ghcr
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build all apps
+        run: |
+          read -ra APP_LIST <<< "$APPS"
+          for app in "${APP_LIST[@]}"; do
+            echo "building $app"
+          done
