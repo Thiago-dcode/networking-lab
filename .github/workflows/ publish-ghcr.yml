@@ -1,26 +1,27 @@
-name: publish to ghcr
+name: Build and publish images to GHCR
 
-on:
-  workflow_dispatch:
+on: workflow_dispatch
 
-env:
-  APPS: "web proxy app1 app2 app3"
-  TAGS: "main ${{github.sha}}"
+permissions:
+  contents: read
+  packages: write # lets GITHUB_TOKEN push to ghcr.io
 
 jobs:
-  build-and-push:
+  push-to-ghcr:
     runs-on: ubuntu-latest
     env:
-      USERNAME: ${{github.actor}}
+      APPS: "web proxy app1 app2 app3"
+      TAGS: "main ${{ github.sha }}"
     steps:
       - uses: actions/checkout@v4
-      - name: login to ghcr
-        uses: docker/login-action@v3
+
+      - uses: docker/login-action@v3
         with:
           registry: ghcr.io
-          username: $USERNAME
-          password: $GITHUB_TOKEN
-      - name: Build all apps
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push all apps
         run: |
           read -ra APP_LIST <<< "$APPS"
           read -ra TAG_LIST <<< "$TAGS"
