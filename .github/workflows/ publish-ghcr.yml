@@ -5,21 +5,43 @@ on:
 
 env:
   APPS: "web proxy app1 app2 app3"
+  TAGS: "main ${{github.sha}}"
 
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
+    env:
+      USERNAME: ${{github.actor}}
     steps:
       - uses: actions/checkout@v4
       - name: login to ghcr
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          username: $USERNAME
+          password: $GITHUB_TOKEN
       - name: Build all apps
         run: |
           read -ra APP_LIST <<< "$APPS"
+          read -ra TAG_LIST <<< "$TAGS"
+
           for app in "${APP_LIST[@]}"; do
-            echo "building $app"
+            image="ghcr.io/${GITHUB_REPOSITORY,,}-${app}"
+            echo "building $app as $image"
+
+            # build one -t flag per tag
+            tag_args=()
+            for tag in "${TAG_LIST[@]}"; do
+              tag_args+=(-t "$image:$tag")
+            done
+
+            docker build "${tag_args[@]}" \
+              -f "apps/$app/Dockerfile" \
+              --label "org.opencontainers.image.source=${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}" \
+              .
+
+            for tag in "${TAG_LIST[@]}"; do
+              echo "pushing $image:$tag"
+              docker push "$image:$tag"
+            done
           done
