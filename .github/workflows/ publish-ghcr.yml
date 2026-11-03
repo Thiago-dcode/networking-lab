@@ -23,15 +23,14 @@ jobs:
 
       - name: Build and push all apps
         run: |
-          read -ra APP_LIST <<< "$APPS"
-          read -ra TAG_LIST <<< "$TAGS"
+          build_and_push() {
+            local app="$1"
+            local image="ghcr.io/${GITHUB_REPOSITORY,,}-${app}"
 
-          for app in "${APP_LIST[@]}"; do
-            image="ghcr.io/${GITHUB_REPOSITORY,,}-${app}"
             echo "building $app as $image"
 
             # build one -t flag per tag
-            tag_args=()
+            local tag_args=()
             for tag in "${TAG_LIST[@]}"; do
               tag_args+=(-t "$image:$tag")
             done
@@ -45,4 +44,13 @@ jobs:
               echo "pushing $image:$tag"
               docker push "$image:$tag"
             done
+          }
+
+          read -ra APP_LIST <<< "$APPS"
+          read -ra TAG_LIST <<< "$TAGS"
+
+          for app in "${APP_LIST[@]}"; do
+            build_and_push "$app" &
           done
+
+          wait
